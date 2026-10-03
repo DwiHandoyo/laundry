@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  STAFF
+}
+
+enum ServiceCategory {
+  SHOE_LAUNDRY
+  REPAINT
+  REGLUE
+  OTHER
+}
+
+enum ServiceUnit {
+  PAIR
+  ITEM
+  KG
+}
+
+enum OrderStatus {
+  RECEIVED
+  IN_PROGRESS
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  phone        String?  @unique
+  passwordHash String
+  role         Role     @default(STAFF)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdOrders Order[]              @relation("OrderCreatedBy")
+  statusChanges OrderStatusHistory[]
+
+  @@map("users")
+}
+
+model Customer {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  phone     String   @unique
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@index([name])
+  @@map("customers")
+}
+
+model Service {
+  id            String          @id @default(uuid()) @db.Uuid
+  code          String          @unique
+  name          String
+  category      ServiceCategory
+  unit          ServiceUnit     @default(PAIR)
+  price         Int
+  estimatedDays Int             @default(3)
+  description   String?
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  orderItems OrderItem[]
+
+  @@index([isActive, category])
+  @@map("services")
+}
+
+model Order {
+  id              String         @id @default(uuid()) @db.Uuid
+  orderNumber     String         @unique
+  customerId      String         @db.Uuid
+  createdById     String         @db.Uuid
+  status          OrderStatus    @default(RECEIVED)
+  paymentStatus   PaymentStatus  @default(UNPAID)
+  paymentMethod   PaymentMethod?
+  subtotal        Int
+  discount        Int            @default(0)
+  total           Int
+  paidAmount      Int            @default(0)
+  notes           String?
+  receivedAt      DateTime       @default(now())
+  estimatedDoneAt DateTime
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  customer      Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy     User                 @relation("OrderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([customerId])
+  @@index([createdAt(sort: Desc)])
+  @@index([receivedAt(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String      @id @default(uuid()) @db.Uuid
+  orderId     String      @db.Uuid
+  serviceId   String      @db.Uuid
+  serviceName String
+  serviceUnit ServiceUnit
+  unitPrice   Int
+  quantity    Int
+  subtotal    Int
+  notes       String?
+  createdAt   DateTime    @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([serviceId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id          String       @id @default(uuid()) @db.Uuid
+  orderId     String       @db.Uuid
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  changedById String       @db.Uuid
+  note        String?
+  createdAt   DateTime     @default(now())
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy User  @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+model OrderSequence {
+  date       String @id
+  lastNumber Int    @default(0)
+
+  @@map("order_sequences")
+}

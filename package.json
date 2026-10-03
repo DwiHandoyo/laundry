@@ -1,0 +1,25 @@
+{
+  "name": "laundry",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*",
+    "apps/api",
+    "apps/mobile"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:shared": "npm run build -w @laundry/shared",
+    "api:dev": "npm run start:dev -w @laundry/api",
+    "api:migrate": "npm run prisma:migrate -w @laundry/api",
+    "api:seed": "npm run prisma:seed -w @laundry/api",
+    "api:test": "npm run test -w @laundry/api",
+    "api:test:e2e": "npm run test:e2e -w @laundry/api"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "typescript": "5.9.3"
+  }
+}
